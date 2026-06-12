@@ -2,9 +2,45 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Hello</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Student Food Menu Vote</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width:720px; margin:24px auto; padding:0 12px; }
+        h1 { margin-bottom: 8px; }
+        .menu { margin: 12px 0; }
+        .menu label { display:block; margin:6px 0; }
+        .actions { margin-top:12px; }
+        button { padding:8px 12px; margin-right:8px; }
+        footer { margin-top:24px; color:#666; font-size:0.9rem }
+    </style>
 </head>
 <body>
-    <h1>Hello there</h1>
+    <h1>Student Food Menu Vote</h1>
+    <p>Please choose your preferred menu item and submit your vote.</p>
+
+    <form id="voteForm">
+        <label for="studentName">Your name (optional)</label>
+        <input id="studentName" name="studentName" type="text" placeholder="e.g. Sam" />
+
+        <div class="menu" role="radiogroup" aria-label="Menu options">
+            <strong>Menu options</strong>
+            <label><input type="radio" name="choice" value="Pizza" /> Pizza</label>
+            <label><input type="radio" name="choice" value="Pasta" /> Pasta</label>
+            <label><input type="radio" name="choice" value="Salad" /> Salad</label>
+            <label><input type="radio" name="choice" value="Sandwich" /> Sandwich</label>
+            <label><input type="radio" name="choice" value="Sushi" /> Sushi</label>
+        </div>
+
+        <div class="actions">
+            <button type="submit">Submit Vote</button>
+            <button type="button" id="viewResults">View Results</button>
+        </div>
+    </form>
+
+    <footer>
+        <p>Votes are saved in your browser (localStorage). To share aggregated results, open the <a href="results.html">results page</a>.</p>
+    </footer>
+
+    <script src="script.js"></script>
 </body>
 </html>

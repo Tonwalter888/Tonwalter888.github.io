@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Vote Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width:900px; margin:24px auto; padding:0 12px; }
+        h1 { margin-bottom:8px }
+        .summary { margin:12px 0; }
+        .counts { display:flex; gap:12px; flex-wrap:wrap }
+        .count { background:#f3f3f3; padding:8px 12px; border-radius:6px }
+        .list { margin-top:12px }
+        table { width:100%; border-collapse:collapse }
+        th, td { text-align:left; padding:8px; border-bottom:1px solid #eee }
+        .controls { margin-top:12px }
+    </style>
+</head>
+<body>
+    <h1>Voting Results</h1>
+    <p class="summary">Aggregated votes from students (stored in this browser).</p>
+
+    <div id="resultsRoot">
+        <div class="counts" id="counts"></div>
+        <div class="list" id="entries"></div>
+    </div>
+
+    <div class="controls">
+        <button id="back">Back to Vote</button>
+        <button id="clear">Clear All Votes</button>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
