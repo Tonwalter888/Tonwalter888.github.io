@@ -1,105 +1,118 @@
-const VOTES_KEY = 'foodVotes';
+const SERVER_BASE = window.location.origin; // assumes server serves pages
+const API_VOTE = '/api/vote';
+const API_COUNTS = '/api/counts';
+const API_VOTES = '/api/votes';
+const VOTES_KEY = 'foodVotes_fallback';
 
-function getVotes() {
-  try {
-    const raw = localStorage.getItem(VOTES_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch (e) {
-    console.error('Failed to parse votes', e);
-    return [];
+async function postVoteToServer(vote) {
+  const res = await fetch(API_VOTE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(vote) });
+  if (!res.ok) throw new Error('Server rejected vote');
+  return res.json();
+}
+
+async function fetchCountsFromServer() {
+  const res = await fetch(API_COUNTS);
+  if (!res.ok) throw new Error('Failed to get counts');
+  return res.json();
+}
+
+function getFallbackVotes(){
+  try{ const raw = localStorage.getItem(VOTES_KEY); return raw?JSON.parse(raw):[] }catch(e){return[]} }
+function saveFallbackVote(v){ const arr=getFallbackVotes(); arr.push(v); localStorage.setItem(VOTES_KEY, JSON.stringify(arr)) }
+function clearFallback(){ localStorage.removeItem(VOTES_KEY) }
+
+function enableOptionSelection() {
+  const cards = document.querySelectorAll('.card');
+  let selected = null;
+  function select(card){
+    cards.forEach(c=>c.classList.remove('selected'));
+    card.classList.add('selected');
+    selected = card.dataset.value;
   }
+  cards.forEach(card=>{
+    card.addEventListener('click', ()=> select(card));
+    card.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' ') { e.preventDefault(); select(card) } });
+  });
+  return ()=>selected;
 }
 
-function saveVote(vote) {
-  const arr = getVotes();
-  arr.push(vote);
-  localStorage.setItem(VOTES_KEY, JSON.stringify(arr));
+function renderTable(votes, container){
+  container.innerHTML='';
+  if(!votes || votes.length===0){ container.innerHTML='<p>No votes yet.</p>'; return }
+  const table=document.createElement('table');
+  table.innerHTML = '<thead><tr><th>#</th><th>Name</th><th>Choice</th><th>Time</th></tr></thead>';
+  const tbody=document.createElement('tbody');
+  votes.slice().reverse().forEach((v,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML = `<td>${votes.length-i}</td><td>${v.name||'-'}</td><td>${v.choice}</td><td>${new Date(v.time).toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  container.appendChild(table);
 }
 
-function clearVotes() {
-  localStorage.removeItem(VOTES_KEY);
-}
-
-function renderResults() {
-  const votes = getVotes();
-  const counts = {};
-  votes.forEach(v => counts[v.choice] = (counts[v.choice] || 0) + 1);
-
+async function renderResultsChart() {
   const countsRoot = document.getElementById('counts');
   const entriesRoot = document.getElementById('entries');
-  countsRoot.innerHTML = '';
-  entriesRoot.innerHTML = '';
-
-  const options = Object.keys(counts).sort((a,b)=>counts[b]-counts[a]);
-  if (options.length === 0) {
-    countsRoot.innerHTML = '<p>No votes yet.</p>';
-  } else {
-    options.forEach(opt => {
-      const div = document.createElement('div');
-      div.className = 'count';
-      div.textContent = `${opt}: ${counts[opt]}`;
-      countsRoot.appendChild(div);
-    });
+  countsRoot.innerHTML=''; entriesRoot.innerHTML='';
+  let countsData=null; let votesList=null;
+  try{
+    countsData = await fetchCountsFromServer();
+    // server returns {counts: {Pizza: 3,...}, votes: [...] }
+    votesList = (await fetch('/api/votes')).json();
+  }catch(e){
+    // fallback to local
+    const fb = getFallbackVotes();
+    votesList = fb;
+    countsData = { counts: {} };
+    fb.forEach(v=> countsData.counts[v.choice] = (countsData.counts[v.choice]||0)+1);
   }
 
-  if (votes.length > 0) {
-    const table = document.createElement('table');
-    const thead = document.createElement('thead');
-    thead.innerHTML = '<tr><th>#</th><th>Name</th><th>Choice</th><th>Time</th></tr>';
-    table.appendChild(thead);
-    const tbody = document.createElement('tbody');
+  const labels = Object.keys(countsData.counts);
+  const data = labels.map(l => countsData.counts[l]);
 
-    votes.slice().reverse().forEach((v, i) => {
-      const tr = document.createElement('tr');
-      const idx = document.createElement('td'); idx.textContent = votes.length - i;
-      const name = document.createElement('td'); name.textContent = v.name || '-';
-      const choice = document.createElement('td'); choice.textContent = v.choice;
-      const time = document.createElement('td'); time.textContent = new Date(v.time).toLocaleString();
-      tr.appendChild(idx);
-      tr.appendChild(name);
-      tr.appendChild(choice);
-      tr.appendChild(time);
-      tbody.appendChild(tr);
-    });
-    table.appendChild(tbody);
-    entriesRoot.appendChild(table);
-  }
+  const ctx = document.getElementById('votesChart');
+  if(window._votesChart) { window._votesChart.data.labels = labels; window._votesChart.data.datasets[0].data = data; window._votesChart.update(); }
+  else { window._votesChart = new Chart(ctx, { type:'pie', data:{ labels, datasets:[{ data, backgroundColor:[ '#2b7cff','#ff7a59','#ffd166','#6be3a1','#b57bff' ] }] }, options:{responsive:true} }) }
+
+  // show simple counts
+  if(labels.length===0) countsRoot.innerHTML = '<p>No votes yet.</p>';
+  else labels.forEach(l=>{ const d=document.createElement('div'); d.className='count'; d.textContent = `${l}: ${countsData.counts[l]}`; countsRoot.appendChild(d) });
+
+  // entries table
+  renderTable(votesList, entriesRoot);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  // If on vote page
+document.addEventListener('DOMContentLoaded', ()=>{
+  const getSelected = enableOptionSelection();
   const form = document.getElementById('voteForm');
-  if (form) {
-    form.addEventListener('submit', (e) => {
+  if(form){
+    form.addEventListener('submit', async (e)=>{
       e.preventDefault();
-      const choiceEl = document.querySelector('input[name="choice"]:checked');
-      if (!choiceEl) {
-        alert('Please select a menu option.');
-        return;
-      }
+      const choice = getSelected();
+      if(!choice){ alert('Please select an option.'); return }
       const name = document.getElementById('studentName').value.trim();
-      const vote = { name: name || null, choice: choiceEl.value, time: new Date().toISOString() };
-      saveVote(vote);
-      alert('Thanks — your vote has been recorded.');
-      form.reset();
-      // redirect to results page to show aggregated data
+      const vote = { name: name||null, choice, time: new Date().toISOString() };
+      try{
+        await postVoteToServer(vote);
+      }catch(err){
+        // fallback
+        saveFallbackVote(vote);
+      }
+      alert('Thanks — your vote is recorded.');
       window.location.href = 'results.html';
     });
-
-    const viewBtn = document.getElementById('viewResults');
-    if (viewBtn) viewBtn.addEventListener('click', () => window.location.href = 'results.html');
+    const viewBtn = document.getElementById('viewResults'); if(viewBtn) viewBtn.addEventListener('click', ()=> window.location.href='results.html');
   }
 
-  // If on results page
   const resultsRoot = document.getElementById('resultsRoot');
-  if (resultsRoot) {
-    renderResults();
-    document.getElementById('back').addEventListener('click', () => window.location.href = 'index.html');
-    document.getElementById('clear').addEventListener('click', () => {
-      if (confirm('Clear all votes from this browser?')) {
-        clearVotes();
-        renderResults();
-      }
+  if(resultsRoot){
+    renderResultsChart();
+    document.getElementById('back').addEventListener('click', ()=> window.location.href='index.html');
+    document.getElementById('refresh').addEventListener('click', ()=> renderResultsChart());
+    document.getElementById('clear').addEventListener('click', async ()=>{
+      if(!confirm('Clear all votes on the server? This removes server-stored votes.')) return;
+      try{ await fetch('/api/votes',{method:'DELETE'}); clearFallback(); renderResultsChart(); }catch(e){ alert('Failed to clear on server; fallback cleared.'); clearFallback(); renderResultsChart(); }
     });
   }
 });
