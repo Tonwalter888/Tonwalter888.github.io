@@ -1,70 +1,318 @@
+```html
 <!DOCTYPE html>
-<html lang="en">
+<html lang="th">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Student Food Menu Vote</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART LIBRARY - แอปห้องสมุดอัจฉริยะ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Prompt & Kanit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Kanit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
     <style>
-        :root{--accent:#2b7cff;--muted:#6b7280}
-        body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial; max-width:980px; margin:24px auto; padding:20px; color:#111 }
-        h1 { margin:0 0 8px 0; font-size:1.8rem }
-        p.lead { margin:0 0 18px 0; color:var(--muted) }
-        .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px }
-        .card { background:#fff; border:1px solid #e6e9ee; border-radius:10px; padding:8px; text-align:center; box-shadow:0 6px 18px rgba(20,24,40,0.04); cursor:pointer; transition:transform .12s,box-shadow .12s }
-        .card.selected{ box-shadow:0 10px 30px rgba(43,124,255,0.14); transform:translateY(-4px); border-color:var(--accent) }
-        .card img{ width:100%; height:110px; object-fit:cover; border-radius:8px }
-        .card h3{ margin:8px 0 4px 0; font-size:1rem }
-        .card p{ margin:0; color:var(--muted); font-size:0.9rem }
-        .controls { display:flex; gap:8px; margin-top:16px }
-        .btn { background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer }
-        .btn.ghost{ background:transparent; color:var(--accent); border:1px solid rgba(43,124,255,0.12) }
-        .meta { margin-top:10px; color:var(--muted); font-size:0.9rem }
+        body {
+            font-family: 'Prompt', 'Kanit', sans-serif;
+            background-color: #f8fafc;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Scanner laser animation */
+        @keyframes scan {
+            0% { top: 10%; }
+            50% { top: 85%; }
+            100% { top: 10%; }
+        }
+        .scanner-line {
+            animation: scan 2s infinite linear;
+        }
     </style>
 </head>
-<body>
-    <h1>Student Food Menu Vote</h1>
+<body class="text-slate-800 antialiased selection:bg-slate-800 selection:text-white bg-slate-100 min-h-screen flex items-center justify-center p-0 sm:p-4">
 
-    <p class="lead">Pick your favourite from the menu below — click a card, optionally add your name, then submit.</p>
+    <div id="app" class="w-full max-w-[410px] h-screen sm:h-[820px] bg-slate-50 sm:rounded-[40px] sm:border-[8px] sm:border-slate-800 shadow-2xl relative overflow-hidden flex flex-col">
 
-    <form id="voteForm">
-        <label for="studentName">Your name (optional)</label>
-        <input id="studentName" name="studentName" type="text" placeholder="e.g. Sam" style="width:100%;padding:8px;margin:6px 0 12px;border-radius:6px;border:1px solid #e6e9ee" />
-
-        <div class="grid" id="optionsGrid" role="list">
-            <div class="card" data-value="Pizza" role="listitem" tabindex="0">
-                <img loading="lazy" src="https://source.unsplash.com/800x600/?pizza" alt="Pizza">
-                <h3>Pizza</h3>
-                <p>Cheesy, baked and crowd-pleasing.</p>
-            </div>
-            <div class="card" data-value="Pasta" role="listitem" tabindex="0">
-                <img loading="lazy" src="https://source.unsplash.com/800x600/?pasta" alt="Pasta">
-                <h3>Pasta</h3>
-                <p>Comforting sauces and tender noodles.</p>
-            </div>
-            <div class="card" data-value="Salad" role="listitem" tabindex="0">
-                <img loading="lazy" src="https://source.unsplash.com/800x600/?salad" alt="Salad">
-                <h3>Salad</h3>
-                <p>Fresh greens and bright dressings.</p>
-            </div>
-            <div class="card" data-value="Sandwich" role="listitem" tabindex="0">
-                <img loading="lazy" src="https://source.unsplash.com/800x600/?sandwich" alt="Sandwich">
-                <h3>Sandwich</h3>
-                <p>Quick, tasty and portable.</p>
-            </div>
-            <div class="card" data-value="Sushi" role="listitem" tabindex="0">
-                <img loading="lazy" src="https://source.unsplash.com/800x600/?sushi" alt="Sushi">
-                <h3>Sushi</h3>
-                <p>Fresh fish and rice rolls.</p>
+        <!-- Mobile Header Bar -->
+        <div class="bg-white px-5 pt-3 pb-2 flex justify-between items-center text-xs font-semibold text-slate-800 select-none border-b border-slate-100 shrink-0">
+            <span>{{ currentTime }}</span>
+            <div class="w-18 h-3.5 bg-slate-900 rounded-full mx-auto -mt-1 hidden sm:block"></div>
+            <div class="flex items-center gap-1.5 text-slate-700">
+                <i class="fa-solid fa-signal text-[10px]"></i>
+                <i class="fa-solid fa-wifi text-[10px]"></i>
+                <i class="fa-solid fa-battery-full text-xs"></i>
             </div>
         </div>
 
-        <div class="controls">
-            <button type="submit" class="btn">Submit Vote</button>
-            <button type="button" id="viewResults" class="btn ghost">View Results</button>
-        </div>
-        <div class="meta">Votes are sent to the web server. If the server isn't running, votes will fall back to localStorage.</div>
-    </form>
+        <!-- Dynamic Header Screen Title -->
+        <div class="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+                <button v-if="currentSubPage !== 'main'" @click="currentSubPage = 'main'" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded-full transition">
+                    <i class="fa-solid fa-chevron-left text-base"></i>
+                </button>
+                <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i v-if="activeTab === 'home'" class="fa-solid fa-book-open-reader text-slate-800"></i>
+                    <i v-if="activeTab === 'search'" class="fa-solid fa-magnifying-glass text-slate-800"></i>
+                    <i v-if="activeTab === 'mybooks'" class="fa-solid fa-book text-slate-800"></i>
+                    <i v-if="activeTab === 'notifications'" class="fa-solid fa-bell text-slate-800"></i>
+                    <i v-if="activeTab === 'return'" class="fa-solid fa-qrcode text-slate-800"></i>
+                    {{ getTabTitle() }}
+                </h2>
+            </div>
 
+            <div class="flex items-center gap-1">
+                <!-- กระดิ่งการแจ้งเตือน -->
+                <button @click="activeTab = 'notifications'; currentSubPage = 'main'" class="relative p-2 text-slate-600 hover:bg-slate-100 rounded-full transition">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span v-if="unreadNotificationsCount > 0" class="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 overflow-y-auto p-4 hide-scrollbar">
+
+            <!-- 1. หน้าหลัก (HOME / หน้าหลัก) -->
+            <div v-if="activeTab === 'home' && currentSubPage === 'main'" class="space-y-4">
+                <!-- คำทักทาย & โปรไฟล์ -->
+                <div class="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-sm">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <div>
+                            <p class="text-[11px] text-slate-400">สวัสดี,</p>
+                            <h3 class="font-bold text-slate-800 text-sm leading-tight">น้องสบาย</h3>
+                            <p class="text-[10px] text-emerald-600 font-medium">สมาชิกห้องสมุดดิจิทัล</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ช่องค้นหาแบบกดเพื่อไปหน้าค้นหา -->
+                <div class="relative cursor-pointer" @click="activeTab = 'search'">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" readonly placeholder="ค้นหาหนังสือ ผู้แต่ง หรือหมวดหมู่" 
+                           class="w-full bg-white hover:bg-slate-50 transition pl-10 pr-4 py-2.5 rounded-xl text-xs border border-slate-200 cursor-pointer shadow-sm">
+                </div>
+
+                <!-- สรุปสถานะการใช้งาน -->
+                <div>
+                    <h4 class="font-bold text-slate-800 text-xs mb-2">สรุปสถานะการใช้งาน</h4>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div @click="activeTab = 'mybooks'; myBooksTab = 'borrowed'" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition">
+                            <p class="text-[11px] text-slate-500 mb-1">กำลังยืม</p>
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-xl font-bold text-slate-900">{{ borrowedBooks.length }}</span>
+                                <span class="text-[11px] text-slate-400">เล่ม <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i></span>
+                            </div>
+                        </div>
+                        <div @click="activeTab = 'mybooks'; myBooksTab = 'reserved'" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition">
+                            <p class="text-[11px] text-slate-500 mb-1">รอรับ / จอง</p>
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-xl font-bold text-slate-900">{{ reservedBooks.length }}</span>
+                                <span class="text-[11px] text-slate-400">เล่ม <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- การแจ้งเตือนหนังสือใกล้กำหนดคืน -->
+                <div v-if="dueSoonBook" class="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-start gap-3">
+                    <div class="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-500 shrink-0 mt-0.5">
+                        <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <h5 class="font-bold text-xs text-rose-900">ใกล้ถึงกำหนดคืน</h5>
+                            <button @click="openBookDetail(dueSoonBook)" class="text-[10px] text-slate-600 hover:text-slate-900 underline font-medium">ดูรายละเอียด</button>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-800 truncate">{{ dueSoonBook.title }}</p>
+                        <p class="text-[10px] text-slate-500">กำหนดคืน {{ dueSoonBook.dueDate }}</p>
+                    </div>
+                </div>
+
+                <!-- หนังสือแนะนำ -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-slate-800 text-xs">หนังสือแนะนำ</h4>
+                        <button @click="activeTab = 'search'" class="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                            ดูทั้งหมด <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div v-for="book in recommendedBooks" :key="book.id" @click="openBookDetail(book)" class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition flex flex-col">
+                            <div class="aspect-[3/4] bg-slate-100 rounded-lg mb-2 overflow-hidden relative">
+                                <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                                <span :class="getStatusBadgeClass(book.status)" class="absolute top-1 right-1 text-[9px] px-1.5 py-0.5 rounded font-medium shadow-sm">
+                                    {{ book.status }}
+                                </span>
+                            </div>
+                            <h5 class="font-bold text-xs text-slate-800 truncate">{{ book.title }}</h5>
+                            <p class="text-[10px] text-slate-400 truncate mb-1">{{ book.author }}</p>
+                            <p class="text-[9px] text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 w-fit mt-auto">{{ book.category }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. หน้าค้นหา (SEARCH / ค้นหา) -->
+            <div v-if="activeTab === 'search' && currentSubPage === 'main'" class="space-y-3.5">
+                <!-- ช่องค้นหา -->
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                    <input v-model="searchQuery" type="text" placeholder="ค้นหาหนังสือ ผู้แต่ง หรือหมวดหมู่" 
+                           class="w-full bg-white focus:bg-white transition pl-10 pr-9 py-2.5 rounded-xl text-xs border border-slate-200 focus:border-slate-800 outline-none shadow-sm">
+                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-circle-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- ฟิลเตอร์ตัวกรองหมวดหมู่ -->
+                <div>
+                    <div class="flex items-center gap-1.5 mb-2 text-[11px] font-semibold text-slate-600">
+                        <i class="fa-solid fa-sliders text-xs"></i> ตัวกรอง
+                    </div>
+                    <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                        <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat"
+                                :class="selectedCategory === cat ? 'bg-slate-900 text-white font-medium' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'"
+                                class="px-3 py-1 rounded-xl text-[11px] whitespace-nowrap transition shadow-sm">
+                            {{ cat }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ผลการค้นหา -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-slate-500 text-[11px]">ผลการค้นหา ({{ filteredBooks.length }})</h4>
+                    </div>
+                    
+                    <div class="space-y-2.5">
+                        <div v-for="book in filteredBooks" :key="book.id" class="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex gap-3 items-center hover:border-slate-300 transition">
+                            <div class="w-14 h-18 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h5 class="font-bold text-xs text-slate-900 truncate">{{ book.title }}</h5>
+                                <p class="text-[11px] text-slate-500 truncate mb-0.5">{{ book.author }}</p>
+                                <p class="text-[10px] text-slate-400 mb-1.5">{{ book.category }}</p>
+                                <div class="flex items-center justify-between">
+                                    <span class="inline-flex items-center gap-1 text-[11px]">
+                                        <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(book.status)"></span>
+                                        <span class="font-medium" :class="getStatusTextClass(book.status)">{{ book.status }}</span>
+                                    </span>
+                                    <button @click="openBookDetail(book)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-medium transition">
+                                        ดูรายละเอียด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="filteredBooks.length === 0" class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass text-3xl mb-2"></i>
+                            <p class="text-xs">ไม่พบหนังสือที่คุณค้นหา</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.1 หน้ารายละเอียดหนังสือ (BOOK DETAIL) -->
+            <div v-if="currentSubPage === 'book-detail' && selectedBook" class="space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex gap-3">
+                        <div class="w-20 h-28 bg-slate-100 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                            <img :src="selectedBook.cover" :alt="selectedBook.title" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">{{ selectedBook.title }}</h3>
+                            <p class="text-xs text-slate-500 mb-2">{{ selectedBook.author }}</p>
+                            <div class="text-[11px] text-slate-500 space-y-0.5">
+                                <p><span class="text-slate-400">หมวดหมู่:</span> {{ selectedBook.category }}</p>
+                                <p><span class="text-slate-400">สำนักพิมพ์:</span> {{ selectedBook.publisher || 'Penguin Books' }}</p>
+                                <p><span class="text-slate-400">ปีที่พิมพ์:</span> {{ selectedBook.year || '2018' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-slate-500">สถานะ</span>
+                        <span class="inline-flex items-center gap-1.5 font-semibold" :class="getStatusTextClass(selectedBook.status)">
+                            <span class="w-2 h-2 rounded-full" :class="getStatusDotClass(selectedBook.status)"></span>
+                            {{ selectedBook.status }}
+                        </span>
+                    </div>
+                    <div class="mt-1 flex items-center justify-between text-xs">
+                        <span class="text-slate-500">จำนวนเล่มที่พร้อมให้บริการ</span>
+                        <span class="font-bold text-slate-800">{{ selectedBook.availableCopies }} เล่ม</span>
+                    </div>
+                </div>
+
+                <!-- ส่วนเลือกวันเวลาจอง -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider">วันที่สามารถรับหนังสือได้</h4>
+                    
+                    <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <i class="fa-regular fa-calendar-check text-slate-700 text-lg"></i>
+                        <div>
+                            <p class="text-xs font-bold text-slate-800">{{ bookingDate }}</p>
+                            <p class="text-[10px] text-slate-500">เวลา 09:00 - 17:00 น.</p>
+                        </div>
+                    </div>
+
+                    <button @click="reserveBook(selectedBook)" 
+                            :disabled="selectedBook.status !== 'ว่าง'"
+                            :class="selectedBook.status === 'ว่าง' ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'"
+                            class="w-full py-2.5 rounded-xl font-bold text-xs transition shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bookmark"></i> จองหนังสือ
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. หน้าหนังสือของฉัน (MY BOOKS) -->
+            <div v-if="activeTab === 'mybooks' && currentSubPage === 'main'" class="space-y-3.5">
+                <!-- ปุ่มสลับแท็บ กำลังยืม / จอง / ประวัติ -->
+                <div class="grid grid-cols-3 bg-slate-200/80 p-1 rounded-xl text-xs font-semibold">
+                    <button @click="myBooksTab = 'borrowed'" 
+                            :class="myBooksTab === 'borrowed' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="py-1.5 rounded-lg transition text-center text-[11px]">
+                        กำลังยืม ({{ borrowedBooks.length }})
+                    </button>
+                    <button @click="myBooksTab = 'reserved'" 
+                            :class="myBooksTab === 'reserved' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="py-1.5 rounded-lg transition text-center text-[11px]">
+                        จองแล้ว ({{ reservedBooks.length }})
+                    </button>
+                    <button @click="myBooksTab = 'history'" 
+                            :class="myBooksTab === 'history' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="py-1.5 rounded-lg transition text-center text-[11px]">
+                        ประวัติ ({{ historyBooks.length }})
+                    </button>
+                </div>
+
+                <!-- แท็บกำลังยืม -->
+                <div v-if="myBooksTab === 'borrowed'" class="space-y-3">
+                    <div v-for="book in borrowedBooks" :key="book.id"
     <footer>
         <p>Votes are saved in your browser (localStorage). To share aggregated results, open the <a href="results.html">results page</a>.</p>
     </footer>
