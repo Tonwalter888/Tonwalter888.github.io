@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMART LIBRARY - แอปห้องสมุดอัจฉริยะ</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Vue 3 CDN -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Prompt & Kanit -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Prompt', 'Kanit', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Prompt', 'Kanit', sans-serif;
+            background-color: #f1f5f9;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        /* Scanner laser animation */
+        @keyframes scan {
+            0% { top: 10%; }
+            50% { top: 85%; }
+            100% { top: 10%; }
+        }
+        .scanner-line {
+            animation: scan 2s infinite linear;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased selection:bg-slate-800 selection:text-white min-h-screen flex items-center justify-center p-0 sm:p-4">
+
+    <div id="app" class="w-full max-w-[410px] h-screen sm:h-[820px] bg-slate-50 sm:rounded-[40px] sm:border-[8px] sm:border-slate-800 shadow-2xl relative overflow-hidden flex flex-col">
+
+        <!-- Mobile Header Bar -->
+        <div class="bg-white px-5 pt-3 pb-2 flex justify-between items-center text-xs font-semibold text-slate-800 select-none border-b border-slate-100 shrink-0">
+            <span>{{ currentTime }}</span>
+            <div class="w-18 h-3.5 bg-slate-900 rounded-full mx-auto -mt-1 hidden sm:block"></div>
+            <div class="flex items-center gap-1.5 text-slate-700">
+                <i class="fa-solid fa-signal text-[10px]"></i>
+                <i class="fa-solid fa-wifi text-[10px]"></i>
+                <i class="fa-solid fa-battery-full text-xs"></i>
+            </div>
+        </div>
+
+        <!-- Dynamic Header Screen Title -->
+        <div class="bg-white px-4 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-2">
+                <button v-if="currentSubPage !== 'main'" @click="currentSubPage = 'main'" class="p-1.5 text-slate-600 hover:bg-slate-100 rounded-full transition">
+                    <i class="fa-solid fa-chevron-left text-base"></i>
+                </button>
+                <h2 class="font-bold text-slate-900 text-base flex items-center gap-2">
+                    <i v-if="activeTab === 'home'" class="fa-solid fa-book-open-reader text-slate-800"></i>
+                    <i v-if="activeTab === 'search'" class="fa-solid fa-magnifying-glass text-slate-800"></i>
+                    <i v-if="activeTab === 'mybooks'" class="fa-solid fa-book text-slate-800"></i>
+                    <i v-if="activeTab === 'notifications'" class="fa-solid fa-bell text-slate-800"></i>
+                    <i v-if="activeTab === 'return'" class="fa-solid fa-qrcode text-slate-800"></i>
+                    {{ getTabTitle() }}
+                </h2>
+            </div>
+
+            <div class="flex items-center gap-1">
+                <!-- Notification Bell Icon -->
+                <button @click="activeTab = 'notifications'; currentSubPage = 'main'" class="relative p-2 text-slate-600 hover:bg-slate-100 rounded-full transition">
+                    <i class="fa-regular fa-bell text-lg"></i>
+                    <span v-if="unreadNotificationsCount > 0" class="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full ring-2 ring-white"></span>
+                </button>
+            </div>
+        </div>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 overflow-y-auto p-4 hide-scrollbar">
+
+            <!-- 1. HOME SCREEN -->
+            <div v-if="activeTab === 'home' && currentSubPage === 'main'" class="space-y-4">
+                <!-- User Greeting -->
+                <div class="flex items-center justify-between bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 bg-slate-800 text-white rounded-full flex items-center justify-center font-bold text-lg shadow-sm">
+                            <i class="fa-solid fa-user"></i>
+                        </div>
+                        <div>
+                            <p class="text-[11px] text-slate-400">สวัสดี,</p>
+                            <h3 class="font-bold text-slate-800 text-sm leading-tight">น้องสบาย</h3>
+                            <p class="text-[10px] text-emerald-600 font-medium">สมาชิกห้องสมุดดิจิทัล</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Search Input -->
+                <div class="relative cursor-pointer" @click="activeTab = 'search'">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                    <input type="text" readonly placeholder="ค้นหาหนังสือ ผู้แต่ง หรือหมวดหมู่" 
+                           class="w-full bg-white hover:bg-slate-50 transition pl-10 pr-4 py-2.5 rounded-xl text-xs border border-slate-200 cursor-pointer shadow-sm">
+                </div>
+
+                <!-- Usage Summary Status -->
+                <div>
+                    <h4 class="font-bold text-slate-800 text-xs mb-2">สรุปสถานะการใช้งาน</h4>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div @click="activeTab = 'mybooks'; myBooksTab = 'borrowed'" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition">
+                            <p class="text-[11px] text-slate-500 mb-1">กำลังยืม</p>
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-xl font-bold text-slate-900">{{ borrowedBooks.length }}</span>
+                                <span class="text-[11px] text-slate-400">เล่ม <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i></span>
+                            </div>
+                        </div>
+                        <div @click="activeTab = 'mybooks'; myBooksTab = 'reserved'" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition">
+                            <p class="text-[11px] text-slate-500 mb-1">รอรับ / จอง</p>
+                            <div class="flex items-baseline justify-between">
+                                <span class="text-xl font-bold text-slate-900">{{ reservedBooks.length }}</span>
+                                <span class="text-[11px] text-slate-400">เล่ม <i class="fa-solid fa-chevron-right text-[9px] ml-0.5"></i></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Due Soon Warning -->
+                <div v-if="dueSoonBook" class="bg-rose-50 border border-rose-200 p-3 rounded-xl flex items-start gap-3">
+                    <div class="w-7 h-7 rounded-full bg-rose-100 flex items-center justify-center text-rose-500 shrink-0 mt-0.5">
+                        <i class="fa-solid fa-triangle-exclamation text-xs"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <h5 class="font-bold text-xs text-rose-900">ใกล้ถึงกำหนดคืน</h5>
+                            <button @click="openBookDetail(dueSoonBook)" class="text-[10px] text-slate-600 hover:text-slate-900 underline font-medium">ดูรายละเอียด</button>
+                        </div>
+                        <p class="text-xs font-semibold text-slate-800 truncate">{{ dueSoonBook.title }}</p>
+                        <p class="text-[10px] text-slate-500">กำหนดคืน {{ dueSoonBook.dueDate }}</p>
+                    </div>
+                </div>
+
+                <!-- Recommended Books -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-slate-800 text-xs">หนังสือแนะนำ</h4>
+                        <button @click="activeTab = 'search'" class="text-[11px] text-slate-500 hover:text-slate-800 flex items-center gap-1">
+                            ดูทั้งหมด <i class="fa-solid fa-chevron-right text-[9px]"></i>
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <div v-for="book in recommendedBooks" :key="book.id" @click="openBookDetail(book)" class="bg-white p-2 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition flex flex-col">
+                            <div class="aspect-[3/4] bg-slate-100 rounded-lg mb-2 overflow-hidden relative">
+                                <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                                <span :class="getStatusBadgeClass(book.status)" class="absolute top-1 right-1 text-[9px] px-1.5 py-0.5 rounded font-medium shadow-sm">
+                                    {{ book.status }}
+                                </span>
+                            </div>
+                            <h5 class="font-bold text-xs text-slate-800 truncate">{{ book.title }}</h5>
+                            <p class="text-[10px] text-slate-400 truncate mb-1">{{ book.author }}</p>
+                            <p class="text-[9px] text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 w-fit mt-auto">{{ book.category }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. SEARCH SCREEN -->
+            <div v-if="activeTab === 'search' && currentSubPage === 'main'" class="space-y-3.5">
+                <!-- Search Box -->
+                <div class="relative">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                    <input v-model="searchQuery" type="text" placeholder="ค้นหาหนังสือ ผู้แต่ง หรือหมวดหมู่" 
+                           class="w-full bg-white focus:bg-white transition pl-10 pr-9 py-2.5 rounded-xl text-xs border border-slate-200 focus:border-slate-800 outline-none shadow-sm">
+                    <button v-if="searchQuery" @click="searchQuery = ''" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                        <i class="fa-solid fa-circle-xmark text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Category Filters -->
+                <div>
+                    <div class="flex items-center gap-1.5 mb-2 text-[11px] font-semibold text-slate-600">
+                        <i class="fa-solid fa-sliders text-xs"></i> ตัวกรอง
+                    </div>
+                    <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                        <button v-for="cat in categories" :key="cat" @click="selectedCategory = cat"
+                                :class="selectedCategory === cat ? 'bg-slate-900 text-white font-medium' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'"
+                                class="px-3 py-1 rounded-xl text-[11px] whitespace-nowrap transition shadow-sm">
+                            {{ cat }}
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Search Results -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="font-bold text-slate-500 text-[11px]">ผลการค้นหา ({{ filteredBooks.length }})</h4>
+                    </div>
+                    
+                    <div class="space-y-2.5">
+                        <div v-for="book in filteredBooks" :key="book.id" class="bg-white p-2.5 rounded-2xl border border-slate-200 shadow-sm flex gap-3 items-center hover:border-slate-300 transition">
+                            <div class="w-14 h-18 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <h5 class="font-bold text-xs text-slate-900 truncate">{{ book.title }}</h5>
+                                <p class="text-[11px] text-slate-500 truncate mb-0.5">{{ book.author }}</p>
+                                <p class="text-[10px] text-slate-400 mb-1.5">{{ book.category }}</p>
+                                <div class="flex items-center justify-between">
+                                    <span class="inline-flex items-center gap-1 text-[11px]">
+                                        <span class="w-1.5 h-1.5 rounded-full" :class="getStatusDotClass(book.status)"></span>
+                                        <span class="font-medium" :class="getStatusTextClass(book.status)">{{ book.status }}</span>
+                                    </span>
+                                    <button @click="openBookDetail(book)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-medium transition">
+                                        ดูรายละเอียด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div v-if="filteredBooks.length === 0" class="text-center py-12 text-slate-400">
+                            <i class="fa-solid fa-magnifying-glass text-3xl mb-2"></i>
+                            <p class="text-xs">ไม่พบหนังสือที่คุณค้นหา</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2.1 BOOK DETAIL SCREEN -->
+            <div v-if="currentSubPage === 'book-detail' && selectedBook" class="space-y-4">
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <div class="flex gap-3">
+                        <div class="w-20 h-28 bg-slate-100 rounded-xl overflow-hidden shrink-0 shadow-sm">
+                            <img :src="selectedBook.cover" :alt="selectedBook.title" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">{{ selectedBook.title }}</h3>
+                            <p class="text-xs text-slate-500 mb-2">{{ selectedBook.author }}</p>
+                            <div class="text-[11px] text-slate-500 space-y-0.5">
+                                <p><span class="text-slate-400">หมวดหมู่:</span> {{ selectedBook.category }}</p>
+                                <p><span class="text-slate-400">สำนักพิมพ์:</span> {{ selectedBook.publisher || 'Penguin Books' }}</p>
+                                <p><span class="text-slate-400">ปีที่พิมพ์:</span> {{ selectedBook.year || '2018' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span class="text-slate-500">สถานะ</span>
+                        <span class="inline-flex items-center gap-1.5 font-semibold" :class="getStatusTextClass(selectedBook.status)">
+                            <span class="w-2 h-2 rounded-full" :class="getStatusDotClass(selectedBook.status)"></span>
+                            {{ selectedBook.status }}
+                        </span>
+                    </div>
+                    <div class="mt-1 flex items-center justify-between text-xs">
+                        <span class="text-slate-500">จำนวนเล่มที่พร้อมให้บริการ</span>
+                        <span class="font-bold text-slate-800">{{ selectedBook.availableCopies }} เล่ม</span>
+                    </div>
+                </div>
+
+                <!-- Booking Pickup Options -->
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <h4 class="font-bold text-xs text-slate-700 uppercase tracking-wider">วันที่สามารถรับหนังสือได้</h4>
+                    
+                    <div class="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <i class="fa-regular fa-calendar-check text-slate-700 text-lg"></i>
+                        <div>
+                            <p class="text-xs font-bold text-slate-800">{{ bookingDate }}</p>
+                            <p class="text-[10px] text-slate-500">เวลา 09:00 - 17:00 น.</p>
+                        </div>
+                    </div>
+
+                    <button @click="reserveBook(selectedBook)" 
+                            :disabled="selectedBook.status !== 'ว่าง'"
+                            :class="selectedBook.status === 'ว่าง' ? 'bg-slate-900 hover:bg-slate-800 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'"
+                            class="w-full py-2.5 rounded-xl font-bold text-xs transition shadow-sm flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-bookmark"></i> จองหนังสือ
+                    </button>
+                </div>
+            </div>
+
+            <!-- 3. MY BOOKS SCREEN -->
+            <div v-if="activeTab === 'mybooks' && currentSubPage === 'main'" class="space-y-3.5">
+                <!-- Sub Tab Switcher -->
+                <div class="grid grid-cols-3 bg-slate-200/80 p-1 rounded-xl text-xs font-semibold">
+                    <button @click="myBooksTab = 'borrowed'" 
+                            :class="myBooksTab === 'borrowed' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="py-1.5 rounded-lg transition text-center text-[11px]">
+                        กำลังยืม ({{ borrowedBooks.length }})
+                    </button>
+                    <button @click="myBooksTab = 'reserved'" 
+                            :class="myBooksTab === 'reserved' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="py-1.5 rounded-lg transition text-center text-[11px]">
+                        จองแล้ว ({{ reservedBooks.length }})
+                    </button>
+                    <button @click="myBooksTab = 'history'" 
+                            :class="myBooksTab === 'history' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+                            class="py-1.5 rounded-lg transition text-center text-[11px]">
+                        ประวัติ ({{ historyBooks.length }})
+                    </button>
+                </div>
+
+                <!-- Borrowed List -->
+                <div v-if="myBooksTab === 'borrowed'" class="space-y-3">
+                    <div v-for="book in borrowedBooks" :key="book.id" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                        <div class="flex gap-3">
+                            <div class="w-14 h-18 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start">
+                                    <h5 class="font-bold text-xs text-slate-900 truncate">{{ book.title }}</h5>
+                                    <span class="bg-slate-100 text-slate-600 text-[9px] px-1.5 py-0.5 rounded font-medium">กำลังยืม</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 truncate mb-1.5">{{ book.author }}</p>
+                                <div class="text-[10px] text-slate-500 space-y-0.5">
+                                    <p>ยืมเมื่อ: <span class="text-slate-700 font-medium">{{ book.borrowDate }}</span></p>
+                                    <p>กำหนดคืน: <span class="text-rose-600 font-bold">{{ book.dueDate }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-2 border-t border-slate-100 flex justify-end gap-2">
+                            <button @click="renewBook(book)" class="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg text-[11px] font-semibold transition">
+                                ต่ออายุการยืม
+                            </button>
+                            <button @click="openReturnPageForBook(book)" class="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[11px] font-semibold transition">
+                                คืนหนังสือ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="borrowedBooks.length === 0" class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-book-open text-3xl mb-2"></i>
+                        <p class="text-xs">ไม่มีหนังสือที่กำลังยืมในขณะนี้</p>
+                    </div>
+                </div>
+
+                <!-- Reserved List -->
+                <div v-if="myBooksTab === 'reserved'" class="space-y-3">
+                    <div v-for="book in reservedBooks" :key="book.id" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm space-y-2.5">
+                        <div class="flex gap-3">
+                            <div class="w-14 h-18 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                                <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="flex justify-between items-start">
+                                    <h5 class="font-bold text-xs text-slate-900 truncate">{{ book.title }}</h5>
+                                    <span class="bg-amber-100 text-amber-700 text-[9px] px-1.5 py-0.5 rounded font-medium">รอการรับ</span>
+                                </div>
+                                <p class="text-[11px] text-slate-500 truncate mb-1.5">{{ book.author }}</p>
+                                <div class="text-[10px] text-slate-500">
+                                    <p>วันที่สามารถรับได้: <span class="text-slate-800 font-bold">{{ book.pickupDate }}</span></p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="pt-2 border-t border-slate-100 flex justify-end gap-2">
+                            <button @click="cancelReservation(book)" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg text-[11px] font-semibold transition">
+                                ยกเลิกการจอง
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="reservedBooks.length === 0" class="text-center py-10 text-slate-400">
+                        <i class="fa-solid fa-bookmark text-3xl mb-2"></i>
+                        <p class="text-xs">ไม่มีรายการจองในขณะนี้</p>
+                    </div>
+                </div>
+
+                <!-- Borrow History List -->
+                <div v-if="myBooksTab === 'history'" class="space-y-2.5">
+                    <div v-for="book in historyBooks" :key="book.id" class="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex gap-3 items-center">
+                        <div class="w-12 h-16 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                            <img :src="book.cover" :alt="book.title" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <h5 class="font-bold text-xs text-slate-900 truncate">{{ book.title }}</h5>
+                            <p class="text-[11px] text-slate-500 truncate mb-1">{{ book.author }}</p>
+                            <div class="text-[10px] text-slate-400">
+                                <p>ยืมเมื่อ: {{ book.borrowDate }}</p>
+                                <p>คืนเมื่อ: <span class="text-emerald-600 font-medium">{{ book.returnDate }}</span></p>
+                            </div>
+                        </div>
+                        <span class="text-emerald-600 font-medium text-[10px] bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-100">คืนแล้ว</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. NOTIFICATIONS SCREEN -->
+            <div v-if="activeTab === 'notifications' && currentSubPage === 'main'" class="space-y-3">
+                <!-- Filter Buttons -->
+                <div class="flex items-center gap-1.5 overflow-x-auto hide-scrollbar pb-1">
+                    <button v-for="filter in notifFilters" :key="filter" @click="selectedNotifFilter = filter"
+                            :class="selectedNotifFilter === filter ? 'bg-slate-900 text-white font-medium' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'"
+                            class="px-3 py-1 rounded-full text-[11px] whitespace-nowrap transition shadow-sm">
+                        {{ filter }}
+                    </button>
+                </div>
+
+                <!-- Notifications List -->
+                <div class="space-y-2">
+                    <div v-for="notif in filteredNotifications" :key="notif.id" 
+                         @click="notif.read = true"
+                         :class="notif.read ? 'bg-white opacity-80' : 'bg-white ring-1 ring-slate-300 shadow-sm'"
+                         class="p-3 rounded-2xl border border-slate-200 flex gap-2.5 items-start cursor-pointer hover:border-slate-300 transition">
+                        <div :class="getNotifIconBg(notif.type)" class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs mt-0.5">
+                            <i :class="getNotifIcon(notif.type)"></i>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <div class="flex justify-between items-baseline mb-0.5">
+                                <h5 class="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                                    {{ notif.title }}
+                                    <span v-if="!notif.read" class="w-1.5 h-1.5 bg-rose-500 rounded-full"></span>
+                                </h5>
+                                <span class="text-[9px] text-slate-400">{{ notif.time }}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-600 leading-snug">{{ notif.message }}</p>
+                        </div>
+                    </div>
+
+                    <div v-if="filteredNotifications.length === 0" class="text-center py-12 text-slate-400">
+                        <i class="fa-regular fa-bell text-3xl mb-2"></i>
+                        <p class="text-xs">ไม่มีการแจ้งเตือน</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 5. RETURN SCANNER SCREEN -->
+            <div v-if="activeTab === 'return' && currentSubPage === 'main'" class="space-y-3.5">
+                <!-- Barcode / QR Scanner Container -->
+                <div class="bg-slate-900 rounded-2xl p-5 text-center text-white relative overflow-hidden shadow-md">
+                    <p class="text-xs text-slate-300 mb-3">สแกน Barcode / QR Code ของหนังสือ</p>
+                    
+                    <!-- Scanner Viewfinder Box -->
+                    <div class="w-44 h-28 border-2 border-dashed border-white/60 rounded-xl mx-auto relative flex flex-col items-center justify-center bg-black/30 overflow-hidden">
+                        <!-- Laser Animation -->
+                        <div class="w-full h-0.5 bg-rose-500 shadow-[0_0_8px_#f43f5e] absolute scanner-line"></div>
+                        <i class="fa-solid fa-barcode text-4xl text-white/30"></i>
+                    </div>
+
+                    <!-- Book Selector Dropdown for Scan Simulation -->
+                    <div class="mt-4 text-left">
+                        <label class="text-[10px] text-slate-400 mb-1 block">เลือกหนังสือที่จะจำลองสแกนคืน:</label>
+                        <select v-model="selectedScanBookId" class="w-full bg-slate-800 text-white text-xs p-2 rounded-lg border border-slate-700 outline-none">
+                            <option v-for="b in borrowedBooks" :key="b.id" :value="b.id">
+                                {{ b.title }}
+                            </option>
+                        </select>
+                    </div>
+
+                    <button @click="simulateScan" class="mt-3 w-full py-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs rounded-xl shadow transition">
+                        <i class="fa-solid fa-camera mr-1"></i> สแกนเพื่อคืนหนังสือ
+                    </button>
+                </div>
+
+                <!-- Book Target Return Card -->
+                <div v-if="returnBookTarget" class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                    <h4 class="font-bold text-[11px] text-slate-500 uppercase tracking-wider">รายละเอียดหนังสือ</h4>
+                    <div class="flex gap-3">
+                        <div class="w-12 h-16 bg-slate-100 rounded-lg overflow-hidden shrink-0">
+                            <img :src="returnBookTarget.cover" :alt="returnBookTarget.title" class="w-full h-full object-cover">
+                        </div>
+                        <div class="flex-1 min-w-0 text-xs space-y-0.5">
+                            <h5 class="font-bold text-xs text-slate-900 truncate">{{ returnBookTarget.title }}</h5>
+                            <p class="text-slate-500 text-[11px]">{{ returnBookTarget.author }}</p>
+                            <p class="text-slate-500 text-[10px]">ยืมเมื่อ: {{ returnBookTarget.borrowDate }}</p>
+                            <p class="text-slate-500 text-[10px]">กำหนดคืน: {{ returnBookTarget.dueDate }}</p>
+                        </div>
+                    </div>
+
+                    <button @click="confirmReturn" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs transition shadow-sm">
+                        ยืนยันการคืน
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM NAVIGATION BAR -->
+        <div class="bg-white border-t border-slate-100 grid grid-cols-4 px-2 py-1.5 text-center text-[10px] text-slate-500 shrink-0">
+            <button @click="activeTab = 'home'; currentSubPage = 'main'" 
+                    :class="activeTab === 'home' ? 'text-slate-900 font-bold' : 'hover:text-slate-800'" class="flex flex-col items-center py-1 gap-0.5">
+                <i class="fa-solid fa-house text-sm"></i>
+                <span>หน้าหลัก</span>
+            </button>
+            <button @click="activeTab = 'search'; currentSubPage = 'main'" 
+                    :class="activeTab === 'search' ? 'text-slate-900 font-bold' : 'hover:text-slate-800'" class="flex flex-col items-center py-1 gap-0.5">
+                <i class="fa-solid fa-magnifying-glass text-sm"></i>
+                <span>ค้นหา</span>
+            </button>
+            <button @click="activeTab = 'mybooks'; currentSubPage = 'main'" 
+                    :class="activeTab === 'mybooks' ? 'text-slate-900 font-bold' : 'hover:text-slate-800'" class="flex flex-col items-center py-1 gap-0.5">
+                <i class="fa-solid fa-book text-sm"></i>
+                <span>หนังสือของฉัน</span>
+            </button>
+            <button @click="activeTab = 'return'; currentSubPage = 'main'" 
+                    :class="activeTab === 'return' ? 'text-slate-900 font-bold' : 'hover:text-slate-800'" class="flex flex-col items-center py-1 gap-0.5">
+                <i class="fa-solid fa-qrcode text-sm"></i>
+                <span>คืนหนังสือ</span>
+            </button>
+        </div>
+
+        <!-- POPUP / MODAL DIALOG -->
+        <div v-if="modal.show" class="absolute inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+            <div class="bg-white w-full max-w-xs rounded-3xl p-5 text-center shadow-2xl space-y-3.5">
+                <div class="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto text-xl">
+                    <i class="fa-solid fa-check"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-900">{{ modal.title }}</h3>
+                    <p class="text-xs text-slate-600 mt-1 leading-relaxed">{{ modal.message }}</p>
+                </div>
+                <button @click="closeModal" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition">
+                    {{ modal.buttonText || 'ตกลง' }}
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Vue App Application Logic -->
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const currentTime = ref('09:41');
+                const activeTab = ref('home');
+                const currentSubPage = ref('main');
+                const myBooksTab = ref('borrowed');
+
+                // Search state
+                const searchQuery = ref('');
+                const selectedCategory = ref('ทั้งหมด');
+                const categories = ['ทั้งหมด', 'นิยาย', 'ความรู้ / จิตวิทยา', 'วิทยาศาสตร์', 'ประวัติศาสตร์'];
+
+                // Notification filters
+                const selectedNotifFilter = ref('ทั้งหมด');
+                const notifFilters = ['ทั้งหมด', 'จอง', 'ยืม', 'คืน', 'เตือน'];
+
+                // Selected items
+                const selectedBook = ref(null);
+                const returnBookTarget = ref(null);
+                const selectedScanBookId = ref(null);
+
+                // Booking date
+                const bookingDate = ref('24 พ.ค. 2567');
+
+                // Modal dialog state
+                const modal = ref({
+                    show: false,
+                    title: '',
+                    message: '',
+                    buttonText: 'ตกลง',
+                    action: null
+                });
+
+                // Book Catalog Database
+                const books = ref([
+                    {
+                        id: 1,
+                        title: 'Atomic Habits',
+                        author: 'James Clear',
+                        category: 'ความรู้ / จิตวิทยา',
+                        status: 'ว่าง',
+                        availableCopies: 3,
+                        publisher: 'Penguin Books',
+                        year: '2018',
+                        cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&auto=format&fit=crop&q=80'
+                    },
+                    {
+                        id: 2,
+                        title: 'Sapiens',
+                        author: 'Yuval Noah Harari',
+                        category: 'ประวัติศาสตร์',
+                        status: 'ถูกยืม',
+                        availableCopies: 0,
+                        publisher: 'Harper',
+                        year: '2015',
+                        cover: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?w=300&auto=format&fit=crop&q=80'
+                    },
+                    {
+                        id: 3,
+                        title: 'The Alchemist',
+                        author: 'Paulo Coelho',
+                        category: 'นิยาย',
+                        status: 'จองแล้ว',
+                        availableCopies: 0,
+                        publisher: 'HarperOne',
+                        year: '1988',
+                        cover: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=300&auto=format&fit=crop&q=80'
+                    },
+                    {
+                        id: 4,
+                        title: 'Thinking, Fast and Slow',
+                        author: 'Daniel Kahneman',
+                        category: 'ความรู้ / จิตวิทยา',
+                        status: 'ว่าง',
+                        availableCopies: 2,
+                        publisher: 'Farrar, Straus and Giroux',
+                        year: '2011',
+                        cover: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=300&auto=format&fit=crop&q=80'
+                    },
+                    {
+                        id: 5,
+                        title: 'Educated',
+                        author: 'Tara Westover',
+                        category: 'ประวัติศาสตร์',
+                        status: 'ว่าง',
+                        availableCopies: 4,
+                        publisher: 'Random House',
+                        year: '2018',
+                        cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&auto=format&fit=crop&q=80'
+                    },
+                    {
+                        id: 6,
+                        title: 'How to Win Friends',
+                        author: 'Dale Carnegie',
+                        category: 'ความรู้ / จิตวิทยา',
+                        status: 'ว่าง',
+                        availableCopies: 5,
+                        publisher: 'Gallery Books',
+                        year: '1936',
+                        cover: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=300&auto=format&fit=crop&q=80'
+                    }
+                ]);
+
+                // User Borrowed Books List
+                const borrowedBooks = ref([
+                    {
+                        id: 1,
+                        title: 'Atomic Habits',
+                        author: 'James Clear',
+                        borrowDate: '10 พ.ค. 2567',
+                        dueDate: '24 พ.ค. 2567',
+                        cover: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=300&auto=format&fit=crop&q=80'
+                    },
+                    {
+                        id: 4,
+                        title: 'Thinking, Fast and Slow',
+                        author: 'Daniel Kahneman',
+                        borrowDate: '1 พ.ค. 2567',
+                        dueDate: '15 พ.ค. 2567',
+                        cover: 'https://images.unsplash.com/photo-1532012197267-da84d127e765?w=300&auto=format&fit=crop&q=80'
+                    }
+                ]);
+
+                // User Reserved Books List
+                const reservedBooks = ref([
+                    {
+                        id: 3,
+                        title: 'The Alchemist',
+                        author: 'Paulo Coelho',
+                        pickupDate: '24 พ.ค. 2567',
+                        cover: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=300&auto=format&fit=crop&q=80'
+                    }
+                ]);
+
+                // Borrow History List
+                const historyBooks = ref([
+                    {
+                        id: 5,
+                        title: 'Educated',
+                        author: 'Tara Westover',
+                        borrowDate: '1 เม.ย. 2567',
+                        returnDate: '15 เม.ย. 2567',
+                        cover: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&auto=format&fit=crop&q=80'
+                    }
+                ]);
+
+                // Notifications Data
+                const notifications = ref([
+                    {
+                        id: 1,
+                        title: 'ใกล้ถึงกำหนดคืน',
+                        message: 'หนังสือ Atomic Habits กำหนดคืน 24 พ.ค. 2567',
+                        time: '08:30 น.',
+                        type: 'เตือน',
+                        read: false
+                    },
+                    {
+                        id: 2,
+                        title: 'จองหนังสือสำเร็จ',
+                        message: 'คุณได้ทำการจองหนังสือ Atomic Habits เรียบร้อยแล้ว รับวันที่ 24 พ.ค. 2567',
+                        time: 'เมื่อวาน 14:20 น.',
+                        type: 'จอง',
+                        read: true
+                    },
+                    {
+                        id: 3,
+                        title: 'หนังสือพร้อมรับ',
+                        message: 'หนังสือที่คุณจองพร้อมให้รับแล้ว กรุณารับภายใน 2 วัน',
+                        time: 'เมื่อวาน 10:15 น.',
+                        type: 'ยืม',
+                        read: true
+                    },
+                    {
+                        id: 4,
+                        title: 'ยืมหนังสือสำเร็จ',
+                        message: 'คุณได้ยืมหนังสือ Atomic Habits กำหนดคืน 24 พ.ค. 2567',
+                        time: '10 พ.ค. 09:40 น.',
+                        type: 'ยืม',
+                        read: true
+                    },
+                    {
+                        id: 5,
+                        title: 'คืนหนังสือสำเร็จ',
+                        message: 'ขอบคุณที่คืนหนังสือ',
+                        time: '8 พ.ค. 16:30 น.',
+                        type: 'คืน',
+                        read: true
+                    }
+                ]);
+
+                // Computed: Filtered Books List
+                const filteredBooks = computed(() => {
+                    return books.value.filter(book => {
+                        const matchesCategory = selectedCategory.value === 'ทั้งหมด' || book.category.includes(selectedCategory.value);
+                        const matchesSearch = book.title.toLowerCase().includes(searchQuery.value.toLowerCase()) || 
+                                              book.author.toLowerCase().includes(searchQuery.value.toLowerCase());
+                        return matchesCategory && matchesSearch;
+                    });
+                });
+
+                // Computed: Recommended Books
+                const recommendedBooks = computed(() => {
+                    return books.value.slice(0, 4);
+                });
+
+                // Computed: Due Soon Book Warning
+                const dueSoonBook = computed(() => {
+                    return borrowedBooks.value[0] || null;
+                });
+
+                // Computed: Unread Notifications Counter
+                const unreadNotificationsCount = computed(() => {
+                    return notifications.value.filter(n => !n.read).length;
+                });
+
+                // Computed: Filtered Notifications
+                const filteredNotifications = computed(() => {
+                    if (selectedNotifFilter.value === 'ทั้งหมด') return notifications.value;
+                    return notifications.value.filter(n => n.type === selectedNotifFilter.value);
+                });
+
+                // Navigation Header Title Helper
+                const getTabTitle = () => {
+                    if (currentSubPage.value === 'book-detail') return 'รายละเอียดหนังสือ';
+                    switch (activeTab.value) {
+                        case 'home': return 'SMART LIBRARY';
+                        case 'search': return 'ค้นหาหนังสือ';
+                        case 'mybooks': return 'หนังสือของฉัน';
+                        case 'notifications': return 'การแจ้งเตือน';
+                        case 'return': return 'คืนหนังสือ';
+                        default: return 'SMART LIBRARY';
+                    }
+                };
+
+                // Open Book Detail Screen
+                const openBookDetail = (book) => {
+                    selectedBook.value = book;
+                    currentSubPage.value = 'book-detail';
+                };
+
+                // Reserve Book Action
+                const reserveBook = (book) => {
+                    if (book.status !== 'ว่าง') return;
+                    
+                    book.status = 'จองแล้ว';
+                    reservedBooks.value.push({
+                        id: book.id,
+                        title: book.title,
+                        author: book.author,
+                        pickupDate: bookingDate.value,
+                        cover: book.cover
+                    });
+
+                    notifications.value.unshift({
+                        id: Date.now(),
+                        title: 'จองหนังสือสำเร็จ',
+                        message: `คุณได้ทำการจองหนังสือ ${book.title} เรียบร้อยแล้ว รับหนังสือได้วันที่ ${bookingDate.value}`,
+                        time: 'เมื่อครู่นี้',
+                        type: 'จอง',
+                        read: false
+                    });
+
+                    modal.value = {
+                        show: true,
+                        title: 'จองสำเร็จ!',
+                        message: `คุณได้ทำการจองหนังสือเรียบร้อยแล้ว รับหนังสือได้วันที่ ${bookingDate.value}`,
+                        buttonText: 'ดูการจองของฉัน',
+                        action: () => {
+                            activeTab.value = 'mybooks';
+                            myBooksTab.value = 'reserved';
+                            currentSubPage.value = 'main';
+                        }
+                    };
+                };
+
+                // Cancel Reservation
+                const cancelReservation = (book) => {
+                    reservedBooks.value = reservedBooks.value.filter(b => b.id !== book.id);
+                    const catalogBook = books.value.find(b => b.id === book.id);
+                    if (catalogBook) {
+                        catalogBook.status = 'ว่าง';
+                    }
+                    modal.value = {
+                        show: true,
+                        title: 'ยกเลิกการจองแล้ว',
+                        message: `ทำการยกเลิกการจองหนังสือ ${book.title} เรียบร้อยแล้ว`,
+                        buttonText: 'ตกลง',
+                        action: null
+                    };
+                };
+
+                // Renew Borrow Period
+                const renewBook = (book) => {
+                    book.dueDate = '31 พ.ค. 2567';
+                    modal.value = {
+                        show: true,
+                        title: 'ต่ออายุการยืมสำเร็จ',
+                        message: `ขยายเวลาคืนหนังสือ ${book.title} ถึงวันที่ 31 พ.ค. 2567 เรียบร้อยแล้ว`,
+                        buttonText: 'ตกลง',
+                        action: null
+                    };
+                };
+
+                // Open Return Screen for specific book
+                const openReturnPageForBook = (book) => {
+                    selectedScanBookId.value = book.id;
+                    returnBookTarget.value = book;
+                    activeTab.value = 'return';
+                    currentSubPage.value = 'main';
+                };
+
+                // Simulate Scan Action
+                const simulateScan = () => {
+                    if (!selectedScanBookId.value && borrowedBooks.value.length > 0) {
+                        selectedScanBookId.value = borrowedBooks.value[0].id;
+                    }
+
+                    const target = borrowedBooks.value.find(b => b.id === selectedScanBookId.value);
+
+                    if (target) {
+                        returnBookTarget.value = target;
+                    } else {
+                        modal.value = {
+                            show: true,
+                            title: 'ไม่พบรายการยืม',
+                            message: 'ไม่มีหนังสือที่ตรงกับ Barcode หรือไม่มีรายการยืมในขณะนี้',
+                            buttonText: 'ตกลง',
+                            action: null
+                        };
+                    }
+                };
+
+                // Confirm Return Action
+                const confirmReturn = () => {
+                    if (!returnBookTarget.value) return;
+
+                    const target = returnBookTarget.value;
+                    borrowedBooks.value = borrowedBooks.value.filter(b => b.id !== target.id);
+                    
+                    historyBooks.value.unshift({
+                        id: target.id,
+                        title: target.title,
+                        author: target.author,
+                        borrowDate: target.borrowDate,
+                        returnDate: '20 พ.ค. 2567',
+                        cover: target.cover
+                    });
+
+                    const foundInCatalog = books.value.find(b => b.id === target.id);
+                    if (foundInCatalog) {
+                        foundInCatalog.status = 'ว่าง';
+                    }
+
+                    notifications.value.unshift({
+                        id: Date.now(),
+                        title: 'คืนหนังสือสำเร็จ',
+                        message: `ขอบคุณที่คืนหนังสือ ${target.title} วันที่ 20 พ.ค. 2567 เวลา 10:30 น.`,
+                        time: 'เมื่อครู่นี้',
+                        type: 'คืน',
+                        read: false
+                    });
+
+                    modal.value = {
+                        show: true,
+                        title: 'คืนหนังสือสำเร็จ!',
+                        message: `ขอบคุณที่คืนหนังสือ วันที่ 20 พ.ค. 2567 เวลา 10:30 น.`,
+                        buttonText: 'ตกลง',
+                        action: () => {
+                            returnBookTarget.value = null;
+                            activeTab.value = 'mybooks';
+                            myBooksTab.value = 'history';
+                        }
+                    };
+                };
+
+                // Close Modal Dialog
+                const closeModal = () => {
+                    modal.value.show = false;
+                    if (modal.value.action) {
+                        modal.value.action();
+                    }
+                };
+
+                // CSS Dynamic Badge Classes
+                const getStatusBadgeClass = (status) => {
+                    switch (status) {
+                        case 'ว่าง': return 'bg-emerald-100 text-emerald-700';
+                        case 'ถูกยืม': return 'bg-rose-100 text-rose-700';
+                        case 'จองแล้ว': return 'bg-amber-100 text-amber-700';
+                        default: return 'bg-slate-100 text-slate-700';
+                    }
+                };
+
+                const getStatusDotClass = (status) => {
+                    switch (status) {
+                        case 'ว่าง': return 'bg-emerald-500';
+                        case 'ถูกยืม': return 'bg-rose-500';
+                        case 'จองแล้ว': return 'bg-amber-500';
+                        default: return 'bg-slate-400';
+                    }
+                };
+
+                const getStatusTextClass = (status) => {
+                    switch (status) {
+                        case 'ว่าง': return 'text-emerald-600';
+                        case 'ถูกยืม': return 'text-rose-600';
+                        case 'จองแล้ว': return 'text-amber-600';
+                        default: return 'text-slate-600';
+                    }
+                };
+
+                const getNotifIconBg = (type) => {
+                    switch (type) {
+                        case 'เตือน': return 'bg-rose-100 text-rose-600';
+                        case 'จอง': return 'bg-amber-100 text-amber-600';
+                        case 'ยืม': return 'bg-blue-100 text-blue-600';
+                        case 'คืน': return 'bg-emerald-100 text-emerald-600';
+                        default: return 'bg-slate-100 text-slate-600';
+                    }
+                };
+
+                const getNotifIcon = (type) => {
+                    switch (type) {
+                        case 'เตือน': return 'fa-solid fa-clock';
+                        case 'จอง': return 'fa-solid fa-check';
+                        case 'ยืม': return 'fa-solid fa-book-open';
+                        case 'คืน': return 'fa-solid fa-calendar-check';
+                        default: return 'fa-solid fa-bell';
+                    }
+                };
+
+                onMounted(() => {
+                    if (borrowedBooks.value.length > 0) {
+                        selectedScanBookId.value = borrowedBooks.value[0].id;
+                    }
+                });
+
+                return {
+                    currentTime,
+                    activeTab,
+                    currentSubPage,
+                    myBooksTab,
+                    searchQuery,
+                    selectedCategory,
+                    categories,
+                    selectedNotifFilter,
+                    notifFilters,
+                    books,
+                    borrowedBooks,
+                    reservedBooks,
+                    historyBooks,
+                    notifications,
+                    filteredBooks,
+                    recommendedBooks,
+                    dueSoonBook,
+                    unreadNotificationsCount,
+                    filteredNotifications,
+                    selectedBook,
+                    returnBookTarget,
+                    selectedScanBookId,
+                    bookingDate,
+                    modal,
+                    getTabTitle,
+                    openBookDetail,
+                    reserveBook,
+                    cancelReservation,
+                    renewBook,
+                    openReturnPageForBook,
+                    simulateScan,
+                    confirmReturn,
+                    closeModal,
+                    getStatusBadgeClass,
+                    getStatusDotClass,
+                    getStatusTextClass,
+                    getNotifIconBg,
+                    getNotifIcon
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
